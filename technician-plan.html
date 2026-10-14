@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E5A8A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Plan">
+<title>Q4 measurements plan</title>
+<style>
+  :root{
+    --bg:#EEF1F4; --card:#FFFFFF; --ink:#14202B; --muted:#5A6774; --line:#D3DAE1; --soft:#E4EAF0;
+    --brand:#0E5A8A; --brand-ink:#FFFFFF;
+    --flag:#FFD200; --flag-ink:#2B2300; --flag-soft:#FFF1A6;
+    --trip:#DCEBF6; --trip-ink:#0C4468; --bad:#B3261E;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0E151B; --card:#17212A; --ink:#E9EEF2; --muted:#9AA8B5; --line:#2B3946; --soft:#223039;
+      --brand:#5BB1E6; --brand-ink:#06202F; --flag-soft:#4D4200;
+      --trip:#1C3A50; --trip-ink:#BFE0F5; --bad:#FF8A80;
+    }
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  button{font:inherit; color:inherit; cursor:pointer}
+  :focus-visible{outline:3px solid var(--brand); outline-offset:2px}
+
+  header{
+    position:sticky; top:0; z-index:5; background:var(--card); border-bottom:1px solid var(--line);
+    padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px;
+  }
+  .bar{display:flex; align-items:center; justify-content:space-between; gap:12px}
+  h1{margin:0; font-size:20px; line-height:1.2; font-weight:750; letter-spacing:-.01em}
+  #status{margin:2px 0 0; font-size:13px; color:var(--muted)}
+  #status.offline{color:var(--bad)}
+  .btn{min-height:44px; padding:0 16px; border-radius:8px; border:1px solid var(--line); background:transparent; font-weight:600}
+  .btn.primary{background:var(--brand); border-color:var(--brand); color:var(--brand-ink)}
+
+  #pills{
+    display:flex; gap:8px; margin:10px -14px 0; padding:2px 14px 4px;
+    overflow-x:auto; scroll-snap-type:x proximity; scrollbar-width:none;
+  }
+  #pills::-webkit-scrollbar{display:none}
+  .pill{
+    flex:none; scroll-snap-align:center; min-height:44px; padding:0 16px; border-radius:999px;
+    border:1.5px solid var(--line); background:transparent; font-weight:650;
+    display:flex; align-items:center; gap:8px; white-space:nowrap;
+  }
+  .pill[aria-pressed="true"]{background:var(--brand); border-color:var(--brand); color:var(--brand-ink)}
+  .dot{
+    min-width:22px; height:22px; padding:0 6px; border-radius:11px; background:var(--flag); color:var(--flag-ink);
+    font-size:13px; font-weight:800; display:inline-flex; align-items:center; justify-content:center;
+  }
+
+  main{max-width:760px; margin:0 auto; padding:14px 14px 48px}
+  .preview{font-size:13px; color:var(--muted); background:var(--soft); border-radius:6px; padding:8px 12px; margin:0 0 12px}
+  .notice{
+    background:var(--flag-soft); border-left:6px solid var(--flag); border-radius:6px; padding:12px 14px; margin-bottom:14px;
+    display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+  }
+  .notice p{margin:0; font-weight:600}
+  .notice small{display:block; font-weight:400; color:var(--muted)}
+  .seg{display:inline-flex; border:1.5px solid var(--line); border-radius:8px; overflow:hidden; margin-bottom:6px}
+  .seg button{min-height:40px; padding:0 16px; border:0; background:transparent; font-weight:600}
+  .seg button[aria-pressed="true"]{background:var(--ink); color:var(--bg)}
+
+  h2.month{margin:20px 0 8px; font-size:15px; font-weight:700; color:var(--muted)}
+
+  .day{
+    display:grid; grid-template-columns:64px 1fr; gap:14px; align-items:start;
+    background:var(--card); border:1px solid var(--line); border-left:6px solid var(--line);
+    border-radius:10px; padding:10px 12px 10px 10px; margin:0 0 10px;
+  }
+  .day.changed{border-left-color:var(--flag)}
+  .day.past{opacity:.55}
+  .when{background:var(--soft); border-radius:8px; text-align:center; padding:8px 0 7px; line-height:1.15}
+  .when .wd,.when .mo{display:block; font-size:13px; color:var(--muted); font-weight:600}
+  .when .num{display:block; font-size:26px; font-weight:800; font-variant-numeric:tabular-nums}
+  .day.today{border-color:var(--brand); border-left-color:var(--brand); border-width:2px; border-left-width:6px}
+  .day.today .when{background:var(--brand); color:var(--brand-ink)}
+  .day.today .when .wd,.day.today .when .mo{color:inherit; opacity:.85}
+  .day.today.changed{border-left-color:var(--flag)}
+
+  .row + .row{margin-top:12px; padding-top:10px; border-top:1px solid var(--line)}
+  .who{font-size:13px; font-weight:650; color:var(--muted); margin-bottom:3px}
+  .items{display:flex; flex-direction:column; gap:6px; align-items:flex-start}
+  .site strong{display:block; font-size:18px; line-height:1.25; font-weight:750; overflow-wrap:anywhere}
+  .today .site strong{font-size:22px}
+  .meta{display:inline-block; margin-right:10px; font-size:13px; color:var(--muted)}
+  .chip{display:inline-block; padding:3px 10px; border-radius:6px; font-size:15px; font-weight:600}
+  .chip.trip{background:var(--trip); color:var(--trip-ink)}
+  .chip.off{background:var(--soft); color:var(--muted)}
+  .note{font-size:15px; color:var(--ink); border-left:3px solid var(--line); padding-left:8px}
+  .none{color:var(--muted); font-size:15px}
+  .flagline{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:6px}
+  .tag{background:var(--flag); color:var(--flag-ink); font-size:13px; font-weight:800; padding:2px 8px; border-radius:4px}
+  .was{font-size:13px; color:var(--muted); text-decoration:line-through; overflow-wrap:anywhere}
+
+  .gap{margin:0 0 10px; padding:2px 4px 2px 80px; font-size:14px; color:var(--muted)}
+  .empty{padding:28px 8px; text-align:center; color:var(--muted)}
+  .empty strong{display:block; color:var(--ink); font-size:18px; margin-bottom:4px}
+  .empty .btn{margin-top:14px}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div>
+      <h1 id="title">Q4 measurements plan</h1>
+      <p id="status" role="status" aria-live="polite">Loading…</p>
+    </div>
+    <button class="btn" id="refresh" type="button">Refresh</button>
+  </div>
+  <nav id="pills" aria-label="Teams"></nav>
+</header>
+<main>
+  <div id="preview"></div>
+  <div id="banner"></div>
+  <div id="tools"></div>
+  <div id="list"></div>
+  <noscript><p class="empty">This page needs JavaScript to show the plan.</p></noscript>
+</main>
+
+<script>
+/* ============================================================
+   SETTINGS – the only part you need to edit
+   ============================================================ */
+const CONFIG = {
+  title: "Q4 measurements plan",
+
+  // Paste the Google Sheets "Publish to web" CSV link between the quotes.
+  // While it is empty, the page shows a built-in preview copy of the plan.
+  sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSZru0sYYbCjQ9coEpeF3oT3M7kq8Trmb8e5GMZTKJzG9mINSmbnebFjyvVOcxOXg/pub?gid=435156756&single=true&output=csv",
+
+  dateColumn: 0,        // position of the date column (0 = first column, as in your sheet)
+  ignoreColumns: [],    // headers of any extra columns to skip
+  refreshMinutes: 5     // how often an open page checks for updates
+};
+/* ============================================================ */
+
+const PREVIEW_CSV = ",,Moustafa + Driver,Milad and Hegazy,Ahmed Soliman and Mohamed\n1-Oct-26,Thursday,OFF,OFF,OFF\n2-Oct-26,Friday,,,\n3-Oct-26,Saturday,,,\n4-Oct-26,Sunday,Cairo_03_003_ElSalam,Travel to Matrouh,Travel to Fayoum\n5-Oct-26,Monday,Cairo_13_016_Maadi,Alex_09_041_Matrouh,Upper_04_097_Wasta\n6-Oct-26,Tuesday,Giza_03_144_Hadayek EL Ahram + Voda 5MHz check,Travel to Alamein,Upper_03_096_BaniSuif\n7-Oct-26,Wednesday,Cairo_17_021_Sherouk,\"\nAlex_08_039_ElAlamein \n\",Upper_02_095_Tamiyyah\n8-Oct-26,Thursday,Official Holiday 6th of October,\"\nAlex_08_040_NorthenCoast \",Upper_01_093_Fayoum\n9-Oct-26,Friday,,Travel to ALX,Upper_02_148_Ebshwai\n10-Oct-26,Saturday,,Alex_03_034_East3,Back to CR\n11-Oct-26,Sunday,Giza_06_147_Nahya - Kerdasa- Abu rawash,Alex_01_032_East1,OFF\n12-Oct-26,Monday,Cairo_16_020_AinShams,Alex_02_033_East2,OFF\n13-Oct-26,Tuesday,Giza_04_163_Hawamdya - Saqara - Shabramant - Badrasheen,Alex_04_035_East4,OFF\n14-Oct-26,Wednesday,Giza_05_164_Ausim - Mansoreya - Kom Ahmar,Alex_05_036_East5,OFF\n15-Oct-26,Thursday,Cairo_07_010_Shobra,Alex_06_037_West1,Travel to Asyout\n16-Oct-26,Friday,,Alex_07_038_West2,Upper_10_107_AlQusayah\n17-Oct-26,Saturday,,Back to CR,Upper_10_109_Abnub\n18-Oct-26,Sunday,Cairo_08_005_Tagmoaa,Delta_10_159_Sers el Layan - Menouf,Upper_Darout\n19-Oct-26,Monday,Cairo_09_012_Zamalek,Delta_15_161_Belbes - Menya El Qamh,Upper_Manflout\n20-Oct-26,Tuesday,Cairo_19_007_Nasr2,Delta_15_083_10thRamadan,Upper_09_126_NewAsyout\n21-Oct-26,Wednesday,Cairo_11_014_Mokkatam,Canal_04_157_Ain Sokhna,Upper_09_106_Asyout\n22-Oct-26,Thursday,Delta_14_011_Shobra Elkhema,Delta_16_022_Obour,Back to CR\n23-Oct-26,Friday,,,\n24-Oct-26,Saturday,,,\n25-Oct-26,Sunday,Travel to Ismailia,Cairo_01_023_Administrative Capital,Travel to RasElbar\n26-Oct-26,Monday,Canal_02_154_Ismailia,Cairo_04_004_Rehab,Delta_05_063_Mahalla\n27-Oct-26,Tuesday,Canal_03_156_Fayed - Abu Sultan,Cairo_10_013_Abbassia,Delta_02_054_Dikirnis\n28-Oct-26,Wednesday,Canal_04_046_Suez,Cairo_12_015_AlManyal,Delta_05_061_Zefta\n29-Oct-26,Thursday,Travel to Portsaid + Canal_03_155_Qantara West,Cairo_06_009_Heliopolis2,Delta_03_057_Talkha\n30-Oct-26,Friday,Canal_01_042_PortSaid,,Delta_02_055_Senbellawen\n31-Oct-26,Saturday,Canal_01_049_PortFouad,,Delta_19_092_RasElbar\n1-Nov-26,Sunday,Back to CR,Cairo_02_153_Khsous,Delta_01_053_Mansoura\n2-Nov-26,Monday,Cairo_14_017_Helwan1,Delta_12_077_Shebin,Delta_18_090_Damietta\n3-Nov-26,Tuesday,Cairo_15_019_QobbaGardens,Delta_17_088_Zagazeg,Delta_03_056_Sherbin\n4-Nov-26,Wednesday,Cairo_06_008_Heliopolis1,Delta_10_137_Ashmoun,Delta_19_091_NewDamietta\n5-Nov-26,Thursday,Giza_02_026_6thOctober1,Delta_11_074_SadatCity,Back to CR\n6-Nov-26,Friday,,,\n7-Nov-26,Saturday,,,\n8-Nov-26,Sunday,Cairo_02_002_ElMarg,Delta_11_139_Quesna - Berket ElSabaa,Travel to Menya \n9-Nov-26,Monday,Cairo_05_006_Nasr1,Delta_16_143_Qanatir,Upper_08_105_Mallawi\n10-Nov-26,Tuesday,Giza_02_027_6thOctober2,Delta_13_160_Qalyuib,Upper_07_103_Menya\n11-Nov-26,Wednesday,Giza_01_024_Zayed1,Delta_17_162_Mit Ghamr,Upper_06_101_Samalut\n12-Nov-26,Thursday,Giza_01_025_Zayed2,Delta_13_078_Banha,Upper_08_100_DayrMawas\n13-Nov-26,Friday,,,Upper_06_099_Maghagha\n14-Nov-26,Saturday,,,Upper_06_102_BaniMazar\n15-Nov-26,Sunday,Giza_04_029_Haram,Travel to Wahat Bahareya,Back to CR\n16-Nov-26,Monday,Giza_05_030_Embaba,Upper_WahatBahareya   Allia Hotel,OFF\n17-Nov-26,Tuesday,Giza_06_031_Mohandesen,Travel to Farafra (Reserve Badawya Hotel),OFF\n18-Nov-26,Wednesday,Cairo_01_001_Madinty,Upper_Farafra,Cairo_18_018_Helwan2\n19-Nov-26,Thursday,OFF,Travel to Dakhla,Giza_03_028_Faisal\n20-Nov-26,Friday,,Upper_Dakhla,\n21-Nov-26,Saturday,,Travel to Kharga (Reserve in Badr Hotel),\n22-Nov-26,Sunday,Travel to Hurghada,Upper_Kharga,Travel to ALX\n23-Nov-26,Monday,Canal_Ras Ghareb,Travel to Asyout,Delta_07_067_KfrelSheikh\n24-Nov-26,Tuesday,Canal_Hurghada,Back to CR,Delta_04_059_Tanta\n25-Nov-26,Wednesday,Canal_Quseer,OFF,Delta_09_071_KfrElDawar\n26-Nov-26,Thursday,Canal_Safaga,OFF,Delta_08_069_Damanhour\n27-Nov-26,Friday,Travel to Marsa Allam,,Delta_07_066_SidiSalem\n28-Nov-26,Saturday,Canal_Marsa Alam ,,Delta_06_065_KafrGhoneim\n29-Nov-26,Sunday,Back to Hurghada,OFF,Delta_06_064_Desouk\n30-Nov-26,Monday,Back to CR,OFF,Delta_04_060_KfrZayat\n1-Dec-26,Tuesday,OFF,OFF,Back to CR\n2-Dec-26,Wednesday,OFF,OFF,OFF\n3-Dec-26,Thursday,OFF,OFF,OFF\n4-Dec-26,Friday,,,\n5-Dec-26,Saturday,,,\n6-Dec-26,Sunday,Delta_15_142_Abu Kebir-Hehya,\"\nTravel to Hurghada\",\"\nTravel to Sohag\"\n7-Dec-26,Monday,,\"\nTravel to Luxor  \",Upper_Sohag\n8-Dec-26,Tuesday,,Upper_05_130_ElQift,Upper_12_150_ElMonshaa\n9-Dec-26,Wednesday,,Upper_17_121_Esna,Upper_13_114_Akhmeim\n10-Dec-26,Thursday,,Upper_17_120_Luxur,Upper_12_112_Gerga\n11-Dec-26,Friday,,Upper_15_118_NagaaHammadi,Upper_NewSohag\n12-Dec-26,Saturday,,Upper_16_119_Qena,Upper_13_165_Sakulta - Maragha - Gez Shand\n13-Dec-26,Sunday,,Upper_05_129_Qoos,Back to CR\n14-Dec-26,Monday,,Upper_15_116_Farshut,\n15-Dec-26,Tuesday,,Travel to Aswan + Upper_19_124_Edfu,\n16-Dec-26,Wednesday,,Upper_19_125_KomUmbu,\n17-Dec-26,Thursday,,Upper_18_122_Aswan,\n18-Dec-26,Friday,,Upper_18_123_Daraw,\n19-Dec-26,Saturday,,Travel to Hurghada,\n20-Dec-26,Sunday,,Back to CR,\n21-Dec-26,Monday,,,\n22-Dec-26,Tuesday,,,\n23-Dec-26,Wednesday,,,\n24-Dec-26,Thursday,,,\n25-Dec-26,Friday,,,\n26-Dec-26,Saturday,,,\n27-Dec-26,Sunday,,,\n28-Dec-26,Monday,,,\n29-Dec-26,Tuesday,,,\n30-Dec-26,Wednesday,,,\n31-Dec-26,Thursday,,,\n";
+
+(function(){
+'use strict';
+const C = CONFIG, ALL = '*';
+const $ = s => document.querySelector(s);
+const preview = !C.sheetUrl;
+const REGION = {Alex:'Alexandria', Upper:'Upper Egypt'};
+
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem('qp:'+k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem('qp:'+k, JSON.stringify(v)); }catch(e){} }
+};
+function el(tag, props, ...kids){
+  const n = document.createElement(tag);
+  if(props) for(const k in props){
+    const v = props[k]; if(v == null || v === false) continue;
+    if(k === 'class') n.className = v;
+    else if(k.startsWith('on')) n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v);
+  }
+  kids.flat().forEach(c => { if(c == null || c === false) return; n.append(c.nodeType ? c : document.createTextNode(c)); });
+  return n;
+}
+
+/* ---------- dates ---------- */
+const pad = n => String(n).padStart(2, '0');
+const key = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
+const MON = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+function todayKey(){ const d = new Date(); return key(d.getFullYear(), d.getMonth() + 1, d.getDate()); }
+function dateKey(s){
+  s = String(s || '').trim(); if(!s) return null; let m;
+  if((m = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/))) return key(+m[1], +m[2], +m[3]);
+  if((m = s.match(/^(\d{1,2})[-\/ .]([A-Za-z]{3,})[-\/ .,]*(\d{2,4})/)) && MON[m[2].slice(0,3).toLowerCase()]){
+    let y = +m[3]; if(y < 100) y += 2000; return key(y, MON[m[2].slice(0,3).toLowerCase()], +m[1]);
+  }
+  if((m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/))){
+    let a = +m[1], b = +m[2], y = +m[3]; if(y < 100) y += 2000;
+    return b > 12 && a <= 12 ? key(y, a, b) : key(y, b, a);
+  }
+  return null;
+}
+const dObj = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+const wd  = k => dObj(k).toLocaleDateString([], {weekday:'short'});
+const mo  = k => dObj(k).toLocaleDateString([], {month:'short'});
+const dn  = k => +k.slice(8);
+const short = k => `${wd(k)} ${dn(k)} ${mo(k)}`;
+const monthLabel = k => dObj(k).toLocaleDateString([], {month:'long', year:'numeric'});
+const fmtTime = ts => new Date(ts).toLocaleString([], {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+
+/* ---------- CSV → plan ---------- */
+function parseCSV(text){
+  const rows = []; let row = [], cell = '', q = false;
+  text = text.replace(/^\uFEFF/, '');
+  for(let i = 0; i < text.length; i++){
+    const ch = text[i];
+    if(q){ if(ch === '"'){ if(text[i+1] === '"'){ cell += '"'; i++; } else q = false; } else cell += ch; }
+    else if(ch === '"') q = true;
+    else if(ch === ','){ row.push(cell); cell = ''; }
+    else if(ch === '\n' || ch === '\r'){ if(ch === '\r' && text[i+1] === '\n') i++; row.push(cell); cell = ''; rows.push(row); row = []; }
+    else cell += ch;
+  }
+  if(cell !== '' || row.length){ row.push(cell); rows.push(row); }
+  return rows;
+}
+function planFromCSV(text){
+  const grid = parseCSV(text).filter(r => r.some(c => c.trim() !== ''));
+  if(grid.length < 2) throw new Error('The sheet is empty');
+  const head = grid[0].map(h => h.trim()), di = C.dateColumn;
+  const skip = new Set(C.ignoreColumns.map(s => s.toLowerCase()));
+  const cols = head.map((h, i) => ({h, i})).filter(c => c.h && c.i !== di && !skip.has(c.h.toLowerCase()) && !/^(day|weekday|date)$/i.test(c.h));
+  if(!cols.length) throw new Error('No team names were found in the first row of the sheet');
+  const days = [];
+  grid.slice(1).forEach(r => {
+    const k = dateKey(r[di]); if(!k) return;
+    const cells = {}; cols.forEach(c => cells[c.h] = (r[c.i] || '').replace(/\s+/g, ' ').trim());
+    days.push({key:k, cells});
+  });
+  if(!days.length) throw new Error('No dates were found in the date column');
+  days.sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+  return {teams: cols.map(c => c.h), days};
+}
+async function fetchPlan(){
+  if(preview) return planFromCSV(PREVIEW_CSV);
+  const u = C.sheetUrl + (C.sheetUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+  const res = await fetch(u, {cache:'no-store'});
+  if(!res.ok) throw new Error('The sheet answered with HTTP ' + res.status);
+  return planFromCSV(await res.text());
+}
+
+/* ---------- change tracking (per team, by date) ---------- */
+function snapshot(team){
+  const s = {}; data.days.forEach(d => s[d.key] = d.cells[team] || '');
+  LS.set('seen:' + team, s);
+}
+function seedSnapshots(){
+  data.teams.forEach((t, i) => {
+    if(LS.get('seen:' + t, null)) return;
+    snapshot(t);
+    if(preview && i === 0){ // preview only: pretend one upcoming day was different, so the highlight can be seen
+      const s = LS.get('seen:' + t, {}), today = todayKey();
+      const d = data.days.find(x => x.key >= today && x.cells[t] && /_/.test(x.cells[t]) && x.key > today);
+      if(d){ s[d.key] = 'Cairo_01_000_Previous site'; LS.set('seen:' + t, s); }
+    }
+  });
+}
+function changesFor(team){
+  const seen = LS.get('seen:' + team, null), out = {}, today = todayKey();
+  if(!seen) return out;
+  data.days.forEach(d => { if(d.key >= today && (d.cells[team] || '') !== (seen[d.key] || '')) out[d.key] = seen[d.key] || ''; });
+  return out;
+}
+
+/* ---------- state ---------- */
+let data = null, error = '', online = true, loadedAt = 0;
+let sel = LS.get('sel', ''), view = LS.get('view', 'upcoming'), scrollToday = false;
+
+function setStatus(text, bad){ const s = $('#status'); s.textContent = text; s.className = bad ? 'offline' : ''; }
+async function refresh(){
+  setStatus('Updating…');
+  try{
+    data = await fetchPlan(); online = true; error = ''; loadedAt = Date.now();
+    data.fetchedAt = loadedAt; if(!preview) LS.set('cache', data);
+  }catch(e){
+    const c = preview ? null : LS.get('cache', null);
+    if(c){ data = c; online = false; } else { data = null; error = e.message || 'Unknown error'; }
+  }
+  if(data) seedSnapshots();
+  render();
+}
+
+/* ---------- rendering ---------- */
+function items(text, today){
+  const wrap = el('div', {class:'items'});
+  text.split(/\s+\+\s+/).forEach(p => {
+    p = p.trim(); if(!p) return;
+    if(/^off$/i.test(p)) wrap.append(el('span', {class:'chip off'}, 'Off'));
+    else if(/holiday/i.test(p)) wrap.append(el('span', {class:'chip off'}, p));
+    else if(/^(travel|back)\b/i.test(p)) wrap.append(el('span', {class:'chip trip'}, p));
+    else {
+      const m = p.match(/^([A-Za-z]+)_(?:(\d+)_(\d+)_)?(.+)$/);
+      if(m) wrap.append(el('div', {class:'site'}, el('strong', null, m[4].trim()),
+        el('span', {class:'meta'}, REGION[m[1]] || m[1]), m[3] && el('span', {class:'meta'}, 'Site ' + m[3])));
+      else wrap.append(el('div', {class:'note'}, p));
+    }
+  });
+  return wrap;
+}
+
+function render(){
+  $('#title').textContent = C.title; document.title = C.title;
+  const pills = $('#pills'), list = $('#list'), banner = $('#banner'), tools = $('#tools');
+  [pills, list, banner, tools].forEach(n => n.replaceChildren());
+  $('#preview').replaceChildren(preview ? el('p', {class:'preview'},
+    'Preview: this is a built-in copy of the plan, not live. Add your Google Sheet link in the settings at the top of this file.') : '');
+
+  if(!data){
+    setStatus('Could not load the plan', true);
+    list.append(el('div', {class:'empty'}, el('strong', null, 'The plan did not load'),
+      error + '. Check your internet connection and the sheet link, then try again.'));
+    return;
+  }
+  setStatus(online ? 'Updated ' + fmtTime(data.fetchedAt) : 'Offline – showing the copy saved on ' + fmtTime(data.fetchedAt), !online);
+  if(sel !== ALL && !data.teams.includes(sel)) sel = data.teams[0];
+
+  const chg = {}; data.teams.forEach(t => chg[t] = changesFor(t));
+  const count = t => Object.keys(chg[t]).length;
+  const scope = sel === ALL ? data.teams : [sel];
+  const allDates = new Set(); data.teams.forEach(t => Object.keys(chg[t]).forEach(k => allDates.add(k)));
+
+  const pick = v => { sel = v; LS.set('sel', v); render(); };
+  pills.append(el('button', {type:'button', class:'pill', 'aria-pressed': String(sel === ALL), onclick: () => pick(ALL)},
+    'All teams', allDates.size > 0 && el('span', {class:'dot', 'aria-label': allDates.size + ' changed days'}, allDates.size)));
+  data.teams.forEach(t => pills.append(el('button', {type:'button', class:'pill', 'aria-pressed': String(t === sel), onclick: () => pick(t)},
+    t, count(t) > 0 && el('span', {class:'dot', 'aria-label': count(t) + ' changed days'}, count(t)))));
+
+  const scopeDates = new Set(); scope.forEach(t => Object.keys(chg[t]).forEach(k => scopeDates.add(k)));
+  if(scopeDates.size){
+    const dates = [...scopeDates].sort(), n = dates.length;
+    banner.append(el('div', {class:'notice'},
+      el('p', null, `${n} ${n === 1 ? 'day has' : 'days have'} changed since you last checked.`,
+        el('small', null, dates.slice(0, 5).map(short).join(', ') + (n > 5 ? ' and more' : ''))),
+      el('button', {class:'btn primary', type:'button', onclick: () => { scope.forEach(snapshot); render(); }}, 'Mark as seen')));
+  }
+
+  tools.append(el('div', {class:'seg', role:'group', 'aria-label':'Range'},
+    [['upcoming', 'From today'], ['all', 'Whole plan']].map(([v, label]) => el('button', {type:'button', 'aria-pressed': String(view === v),
+      onclick: () => { view = v; LS.set('view', v); scrollToday = v === 'all'; render(); }}, label))));
+
+  const today = todayKey();
+  const days = data.days.filter(d => view === 'all' || d.key >= today);
+  if(!days.length){
+    list.append(el('div', {class:'empty'}, el('strong', null, 'The plan has ended'), 'There are no days left in this plan.',
+      el('div', null, el('button', {class:'btn', type:'button', onclick: () => { view = 'all'; LS.set('view', 'all'); render(); }}, 'Show the whole plan'))));
+    return;
+  }
+
+  const showTeams = d => scope.filter(t => d.cells[t] || (d.key in chg[t]));
+  let month = '', run = [];
+  const ensureMonth = k => { const m = k.slice(0, 7); if(m !== month){ month = m; list.append(el('h2', {class:'month'}, monthLabel(k))); } };
+  const flush = () => {
+    if(!run.length) return;
+    ensureMonth(run[0].key);
+    const a = run[0].key, b = run[run.length - 1].key;
+    list.append(el('p', {class:'gap'}, run.length === 1 ? `No plan for ${short(a)}` : `No plan from ${short(a)} to ${short(b)}`));
+    run = [];
+  };
+
+  days.forEach(d => {
+    const isToday = d.key === today, shown = showTeams(d);
+    if(!shown.length && !isToday){ run.push(d); return; }
+    flush(); ensureMonth(d.key);
+    const flagged = shown.some(t => d.key in chg[t]);
+    const body = el('div');
+    if(!shown.length) body.append(el('div', {class:'none'}, 'Nothing planned today.'));
+    shown.forEach(t => {
+      const text = d.cells[t] || '', was = chg[t][d.key], isChg = d.key in chg[t];
+      body.append(el('div', {class:'row'},
+        sel === ALL && el('div', {class:'who'}, t),
+        text ? items(text) : el('div', {class:'none'}, 'No plan'),
+        isChg && el('div', {class:'flagline'}, el('span', {class:'tag'}, was ? 'Changed' : 'New'),
+          was && el('span', {class:'was'}, 'was: ' + was))));
+    });
+    list.append(el('article', {class:'day' + (isToday ? ' today' : '') + (flagged ? ' changed' : '') + (d.key < today ? ' past' : ''),
+      'aria-current': isToday ? 'date' : null},
+      el('div', {class:'when'}, el('span', {class:'wd'}, isToday ? 'Today' : wd(d.key)), el('span', {class:'num'}, dn(d.key)), el('span', {class:'mo'}, mo(d.key))),
+      body));
+  });
+  flush();
+
+  const on = pills.querySelector('[aria-pressed="true"]');
+  if(on && on.scrollIntoView) on.scrollIntoView({inline:'center', block:'nearest'});
+  if(scrollToday){ scrollToday = false; const t = document.querySelector('[aria-current="date"]'); if(t) t.scrollIntoView({block:'center'}); }
+}
+
+/* ---------- wiring ---------- */
+$('#refresh').addEventListener('click', refresh);
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && Date.now() - loadedAt > 60000) refresh(); });
+setInterval(refresh, Math.max(1, C.refreshMinutes) * 60000);
+window.addEventListener('online', refresh);
+refresh();
+})();
+</script>
+</body>
+</html>
