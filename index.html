@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#0E5A8A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Plan"> 
-<link rel="apple-touch-icon" href="apple-touch-icon.png"> 
+<meta name="apple-mobile-web-app-title" content="Plan">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="icon-192.png" type="image/png">
 <link rel="manifest" href="manifest.webmanifest">
 <title>Q4 measurements plan</title>
@@ -110,9 +110,80 @@
   .empty{padding:28px 8px; text-align:center; color:var(--muted)}
   .empty strong{display:block; color:var(--ink); font-size:18px; margin-bottom:4px}
   .empty .btn{margin-top:14px}
+
+  .locked header,.locked main{display:none}
+  #gate{min-height:100vh; min-height:100dvh; display:flex; align-items:center; justify-content:center; padding:24px}
+  #gate[hidden]{display:none}
+  .gate-box{width:100%; max-width:380px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:24px}
+  .gate-box h1{font-size:22px; margin-bottom:6px}
+  .gate-box p{margin:0 0 16px; color:var(--muted)}
+  .gate-box label{display:block; font-size:14px; font-weight:600; margin-bottom:6px}
+  .gate-box input{
+    width:100%; min-height:48px; padding:0 12px; font:inherit; font-size:18px; color:var(--ink);
+    background:var(--bg); border:1.5px solid var(--line); border-radius:8px; margin-bottom:14px;
+  }
+  .gate-box .btn{width:100%}
+  #gate-err{margin:12px 0 0; color:var(--bad); font-weight:600; min-height:1.4em}
+
+  .tabs{display:flex; gap:4px; margin:8px -14px 0; padding:0 14px; border-bottom:1px solid var(--line)}
+  .tab{min-height:44px; padding:0 16px; background:transparent; border:0; border-bottom:3px solid transparent; margin-bottom:-1px; font-weight:650; color:var(--muted)}
+  .tab[aria-selected="true"]{color:var(--ink); border-bottom-color:var(--brand)}
+  .stat-hero{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:6px}
+  .stat-hero .big{font-size:40px; line-height:1.05; font-weight:800; font-variant-numeric:tabular-nums}
+  .stat-hero .big small{font-size:18px; font-weight:600; color:var(--muted)}
+  .stat-hero p{margin:4px 0 12px; color:var(--muted)}
+  .meter{height:12px; background:var(--soft); border-radius:6px; overflow:hidden}
+  .meter span{display:block; height:100%; background:var(--brand); border-radius:6px}
+  .nums{display:flex; gap:20px; flex-wrap:wrap; margin-top:14px}
+  .nums div{font-size:13px; color:var(--muted)}
+  .nums b{display:block; font-size:22px; line-height:1.2; color:var(--ink); font-variant-numeric:tabular-nums}
+  h2.sec{margin:22px 0 8px; font-size:15px; font-weight:700; color:var(--muted)}
+  .stat{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:10px}
+  .stat-top{display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:8px}
+  .stat-top strong{font-size:17px}
+  .stat-top span{font-weight:700; font-variant-numeric:tabular-nums}
+  .stat .sub{display:flex; gap:12px; flex-wrap:wrap; margin-top:8px; font-size:13px; color:var(--muted)}
+  .stat .warn{background:var(--flag); color:var(--flag-ink); font-weight:700; padding:1px 8px; border-radius:4px}
+  .fine{font-size:13px; color:var(--muted); margin:16px 0 0}
+  .tabs:empty{display:none}
+  .overlay{position:fixed; inset:0; z-index:30; display:flex; align-items:center; justify-content:center; padding:24px; background:rgba(8,16,24,.6)}
+  .overlay[hidden]{display:none}
+  #owner-err{margin:12px 0 0; color:var(--bad); font-weight:600; min-height:1.4em}
+  :root{--sp:#E7DAF5; --sp-ink:#3B1A63}
+  @media (prefers-color-scheme:dark){:root{--sp:#3A2B55; --sp-ink:#E3D3FA}}
+  .tagsp{display:inline-block; background:var(--sp); color:var(--sp-ink); font-size:13px; font-weight:800; padding:2px 8px; border-radius:4px; margin-bottom:3px}
+  .owner-lock{margin-top:18px}
+  .leftlist{margin-top:10px; border-top:1px solid var(--line); padding-top:4px}
+  .leftlist summary{min-height:40px; display:flex; align-items:center; cursor:pointer; font-weight:650; color:var(--brand)}
+  .leftlist ul{list-style:none; margin:2px 0 0; padding:0}
+  .leftlist li{display:flex; gap:12px; padding:7px 0; border-bottom:1px solid var(--line); font-size:15px}
+  .leftlist li:last-child{border-bottom:0}
+  .ld{flex:none; width:88px; color:var(--muted); font-variant-numeric:tabular-nums}
+  .stat-hero .asof{font-size:13px; margin:-6px 0 12px}
+  .leftlist .was{display:block}
 </style>
 </head>
 <body>
+<section id="gate" hidden>
+  <form class="gate-box" id="gate-form" autocomplete="off">
+    <h1 id="gate-title">Plan</h1>
+    <p>Enter the team passcode to open the plan.</p>
+    <label for="code">Passcode</label>
+    <input id="code" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" enterkeyhint="go">
+    <button class="btn primary" type="submit">Open plan</button>
+    <p id="gate-err" role="alert"></p>
+  </form>
+</section>
+<section id="owner-box" class="overlay" hidden>
+  <form class="gate-box" id="owner-form" autocomplete="off">
+    <h1>Owner access</h1>
+    <label for="owner-code">Owner passcode</label>
+    <input id="owner-code" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" enterkeyhint="go">
+    <button class="btn primary" type="submit">Unlock</button>
+    <button class="btn" type="button" id="owner-cancel" style="margin-top:8px">Cancel</button>
+    <p id="owner-err" role="alert"></p>
+  </form>
+</section>
 <header>
   <div class="bar">
     <div>
@@ -121,6 +192,7 @@
     </div>
     <button class="btn" id="refresh" type="button">Refresh</button>
   </div>
+  <nav id="tabs" class="tabs" role="tablist" aria-label="Sections"></nav>
   <nav id="pills" aria-label="Teams"></nav>
 </header>
 <main>
@@ -131,24 +203,38 @@
   <noscript><p class="empty">This page needs JavaScript to show the plan.</p></noscript>
 </main>
 
+<script src="settings.js"></script>
 <script>
 /* ============================================================
-   SETTINGS – the only part you need to edit
+   Default settings. Your own settings (sheet link, passcode, zone
+   totals) live in the separate file settings.js, so you can replace
+   this page with a newer version without losing them.
    ============================================================ */
-const CONFIG = {
+const DEFAULTS = {
   title: "Q4 measurements plan",
-
-  // Paste the Google Sheets "Publish to web" CSV link between the quotes.
-  // While it is empty, the page shows a built-in preview copy of the plan.
-  sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSZru0sYYbCjQ9coEpeF3oT3M7kq8Trmb8e5GMZTKJzG9mINSmbnebFjyvVOcxOXg/pub?gid=435156756&single=true&output=csv",
-
-  dateColumn: 0,        // position of the date column (0 = first column, as in your sheet)
-  ignoreColumns: [],    // headers of any extra columns to skip
-  refreshMinutes: 5     // how often an open page checks for updates
+  sheetUrl: "",
+  passcode: "",
+  ownerPasscode: "",
+  zoneTargets: { Giza: 12, Alex: 10, Cairo: 22, Upper: 38, Delta: 33, Canal: 12 },
+  dateColumn: 0,
+  ignoreColumns: [],
+  refreshMinutes: 5
 };
+const CONFIG = Object.assign({}, DEFAULTS, window.PLAN_SETTINGS || {});
 /* ============================================================ */
 
-const PREVIEW_CSV = ",,Moustafa + Driver,Milad and Hegazy,Ahmed Soliman and Mohamed\n1-Oct-26,Thursday,OFF,OFF,OFF\n2-Oct-26,Friday,,,\n3-Oct-26,Saturday,,,\n4-Oct-26,Sunday,Cairo_03_003_ElSalam,Travel to Matrouh,Travel to Fayoum\n5-Oct-26,Monday,Cairo_13_016_Maadi,Alex_09_041_Matrouh,Upper_04_097_Wasta\n6-Oct-26,Tuesday,Giza_03_144_Hadayek EL Ahram + Voda 5MHz check,Travel to Alamein,Upper_03_096_BaniSuif\n7-Oct-26,Wednesday,Cairo_17_021_Sherouk,\"\nAlex_08_039_ElAlamein \n\",Upper_02_095_Tamiyyah\n8-Oct-26,Thursday,Official Holiday 6th of October,\"\nAlex_08_040_NorthenCoast \",Upper_01_093_Fayoum\n9-Oct-26,Friday,,Travel to ALX,Upper_02_148_Ebshwai\n10-Oct-26,Saturday,,Alex_03_034_East3,Back to CR\n11-Oct-26,Sunday,Giza_06_147_Nahya - Kerdasa- Abu rawash,Alex_01_032_East1,OFF\n12-Oct-26,Monday,Cairo_16_020_AinShams,Alex_02_033_East2,OFF\n13-Oct-26,Tuesday,Giza_04_163_Hawamdya - Saqara - Shabramant - Badrasheen,Alex_04_035_East4,OFF\n14-Oct-26,Wednesday,Giza_05_164_Ausim - Mansoreya - Kom Ahmar,Alex_05_036_East5,OFF\n15-Oct-26,Thursday,Cairo_07_010_Shobra,Alex_06_037_West1,Travel to Asyout\n16-Oct-26,Friday,,Alex_07_038_West2,Upper_10_107_AlQusayah\n17-Oct-26,Saturday,,Back to CR,Upper_10_109_Abnub\n18-Oct-26,Sunday,Cairo_08_005_Tagmoaa,Delta_10_159_Sers el Layan - Menouf,Upper_Darout\n19-Oct-26,Monday,Cairo_09_012_Zamalek,Delta_15_161_Belbes - Menya El Qamh,Upper_Manflout\n20-Oct-26,Tuesday,Cairo_19_007_Nasr2,Delta_15_083_10thRamadan,Upper_09_126_NewAsyout\n21-Oct-26,Wednesday,Cairo_11_014_Mokkatam,Canal_04_157_Ain Sokhna,Upper_09_106_Asyout\n22-Oct-26,Thursday,Delta_14_011_Shobra Elkhema,Delta_16_022_Obour,Back to CR\n23-Oct-26,Friday,,,\n24-Oct-26,Saturday,,,\n25-Oct-26,Sunday,Travel to Ismailia,Cairo_01_023_Administrative Capital,Travel to RasElbar\n26-Oct-26,Monday,Canal_02_154_Ismailia,Cairo_04_004_Rehab,Delta_05_063_Mahalla\n27-Oct-26,Tuesday,Canal_03_156_Fayed - Abu Sultan,Cairo_10_013_Abbassia,Delta_02_054_Dikirnis\n28-Oct-26,Wednesday,Canal_04_046_Suez,Cairo_12_015_AlManyal,Delta_05_061_Zefta\n29-Oct-26,Thursday,Travel to Portsaid + Canal_03_155_Qantara West,Cairo_06_009_Heliopolis2,Delta_03_057_Talkha\n30-Oct-26,Friday,Canal_01_042_PortSaid,,Delta_02_055_Senbellawen\n31-Oct-26,Saturday,Canal_01_049_PortFouad,,Delta_19_092_RasElbar\n1-Nov-26,Sunday,Back to CR,Cairo_02_153_Khsous,Delta_01_053_Mansoura\n2-Nov-26,Monday,Cairo_14_017_Helwan1,Delta_12_077_Shebin,Delta_18_090_Damietta\n3-Nov-26,Tuesday,Cairo_15_019_QobbaGardens,Delta_17_088_Zagazeg,Delta_03_056_Sherbin\n4-Nov-26,Wednesday,Cairo_06_008_Heliopolis1,Delta_10_137_Ashmoun,Delta_19_091_NewDamietta\n5-Nov-26,Thursday,Giza_02_026_6thOctober1,Delta_11_074_SadatCity,Back to CR\n6-Nov-26,Friday,,,\n7-Nov-26,Saturday,,,\n8-Nov-26,Sunday,Cairo_02_002_ElMarg,Delta_11_139_Quesna - Berket ElSabaa,Travel to Menya \n9-Nov-26,Monday,Cairo_05_006_Nasr1,Delta_16_143_Qanatir,Upper_08_105_Mallawi\n10-Nov-26,Tuesday,Giza_02_027_6thOctober2,Delta_13_160_Qalyuib,Upper_07_103_Menya\n11-Nov-26,Wednesday,Giza_01_024_Zayed1,Delta_17_162_Mit Ghamr,Upper_06_101_Samalut\n12-Nov-26,Thursday,Giza_01_025_Zayed2,Delta_13_078_Banha,Upper_08_100_DayrMawas\n13-Nov-26,Friday,,,Upper_06_099_Maghagha\n14-Nov-26,Saturday,,,Upper_06_102_BaniMazar\n15-Nov-26,Sunday,Giza_04_029_Haram,Travel to Wahat Bahareya,Back to CR\n16-Nov-26,Monday,Giza_05_030_Embaba,Upper_WahatBahareya   Allia Hotel,OFF\n17-Nov-26,Tuesday,Giza_06_031_Mohandesen,Travel to Farafra (Reserve Badawya Hotel),OFF\n18-Nov-26,Wednesday,Cairo_01_001_Madinty,Upper_Farafra,Cairo_18_018_Helwan2\n19-Nov-26,Thursday,OFF,Travel to Dakhla,Giza_03_028_Faisal\n20-Nov-26,Friday,,Upper_Dakhla,\n21-Nov-26,Saturday,,Travel to Kharga (Reserve in Badr Hotel),\n22-Nov-26,Sunday,Travel to Hurghada,Upper_Kharga,Travel to ALX\n23-Nov-26,Monday,Canal_Ras Ghareb,Travel to Asyout,Delta_07_067_KfrelSheikh\n24-Nov-26,Tuesday,Canal_Hurghada,Back to CR,Delta_04_059_Tanta\n25-Nov-26,Wednesday,Canal_Quseer,OFF,Delta_09_071_KfrElDawar\n26-Nov-26,Thursday,Canal_Safaga,OFF,Delta_08_069_Damanhour\n27-Nov-26,Friday,Travel to Marsa Allam,,Delta_07_066_SidiSalem\n28-Nov-26,Saturday,Canal_Marsa Alam ,,Delta_06_065_KafrGhoneim\n29-Nov-26,Sunday,Back to Hurghada,OFF,Delta_06_064_Desouk\n30-Nov-26,Monday,Back to CR,OFF,Delta_04_060_KfrZayat\n1-Dec-26,Tuesday,OFF,OFF,Back to CR\n2-Dec-26,Wednesday,OFF,OFF,OFF\n3-Dec-26,Thursday,OFF,OFF,OFF\n4-Dec-26,Friday,,,\n5-Dec-26,Saturday,,,\n6-Dec-26,Sunday,Delta_15_142_Abu Kebir-Hehya,\"\nTravel to Hurghada\",\"\nTravel to Sohag\"\n7-Dec-26,Monday,,\"\nTravel to Luxor  \",Upper_Sohag\n8-Dec-26,Tuesday,,Upper_05_130_ElQift,Upper_12_150_ElMonshaa\n9-Dec-26,Wednesday,,Upper_17_121_Esna,Upper_13_114_Akhmeim\n10-Dec-26,Thursday,,Upper_17_120_Luxur,Upper_12_112_Gerga\n11-Dec-26,Friday,,Upper_15_118_NagaaHammadi,Upper_NewSohag\n12-Dec-26,Saturday,,Upper_16_119_Qena,Upper_13_165_Sakulta - Maragha - Gez Shand\n13-Dec-26,Sunday,,Upper_05_129_Qoos,Back to CR\n14-Dec-26,Monday,,Upper_15_116_Farshut,\n15-Dec-26,Tuesday,,Travel to Aswan + Upper_19_124_Edfu,\n16-Dec-26,Wednesday,,Upper_19_125_KomUmbu,\n17-Dec-26,Thursday,,Upper_18_122_Aswan,\n18-Dec-26,Friday,,Upper_18_123_Daraw,\n19-Dec-26,Saturday,,Travel to Hurghada,\n20-Dec-26,Sunday,,Back to CR,\n21-Dec-26,Monday,,,\n22-Dec-26,Tuesday,,,\n23-Dec-26,Wednesday,,,\n24-Dec-26,Thursday,,,\n25-Dec-26,Friday,,,\n26-Dec-26,Saturday,,,\n27-Dec-26,Sunday,,,\n28-Dec-26,Monday,,,\n29-Dec-26,Tuesday,,,\n30-Dec-26,Wednesday,,,\n31-Dec-26,Thursday,,,\n";
+function sampleCSV(){
+  const rows = [',,Team A,Team B,Team C'], regions = ['Cairo','Giza','Alex','Delta','Upper','Canal'], base = new Date();
+  for(let i = 0; i < 14; i++){
+    const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i), dow = d.getDay();
+    const label = d.getDate() + '-' + d.toLocaleDateString('en', {month:'short'}) + '-' + String(d.getFullYear()).slice(2);
+    const wk = d.toLocaleDateString('en', {weekday:'long'});
+    if(dow === 5 || dow === 6){ rows.push(label + ',' + wk + ',,,'); continue; }
+    const cell = n => regions[(i + n) % 6] + '_0' + ((i + n) % 9 + 1) + '_' + String(100 + i * 3 + n).padStart(3, '0') + '_Sample site ' + (i * 3 + n + 1);
+    rows.push([label, wk, cell(0), i % 4 === 1 ? 'Travel to sample city' : cell(1), i % 5 === 2 ? 'OFF' : cell(2)].join(','));
+  }
+  return rows.join('\n');
+}
 
 (function(){
 'use strict';
@@ -231,7 +317,7 @@ function planFromCSV(text){
   return {teams: cols.map(c => c.h), days};
 }
 async function fetchPlan(){
-  if(preview) return planFromCSV(PREVIEW_CSV);
+  if(preview) return planFromCSV(sampleCSV());
   const u = C.sheetUrl + (C.sheetUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
   const res = await fetch(u, {cache:'no-store'});
   if(!res.ok) throw new Error('The sheet answered with HTTP ' + res.status);
@@ -263,10 +349,11 @@ function changesFor(team){
 
 /* ---------- state ---------- */
 let data = null, error = '', online = true, loadedAt = 0;
-let sel = LS.get('sel', ''), view = LS.get('view', 'upcoming'), scrollToday = false;
+let page = LS.get('page', 'plan'), sel = LS.get('sel', ''), view = LS.get('view', 'upcoming'), scrollToday = false;
 
 function setStatus(text, bad){ const s = $('#status'); s.textContent = text; s.className = bad ? 'offline' : ''; }
 async function refresh(){
+  if(locked) return;
   setStatus('Updating…');
   try{
     data = await fetchPlan(); online = true; error = ''; loadedAt = Date.now();
@@ -284,7 +371,9 @@ function items(text, today){
   const wrap = el('div', {class:'items'});
   text.split(/\s+\+\s+/).forEach(p => {
     p = p.trim(); if(!p) return;
-    if(/^off$/i.test(p)) wrap.append(el('span', {class:'chip off'}, 'Off'));
+    const sp = p.match(/^special[\s_:\-–—.]*(.*)$/i);
+    if(sp) wrap.append(el('div', {class:'site'}, el('span', {class:'tagsp'}, 'Special'), el('strong', null, sp[1].trim() || 'Special measurement')));
+    else if(/^off$/i.test(p)) wrap.append(el('span', {class:'chip off'}, 'Off'));
     else if(/holiday/i.test(p)) wrap.append(el('span', {class:'chip off'}, p));
     else if(/^(travel|back)\b/i.test(p)) wrap.append(el('span', {class:'chip trip'}, p));
     else {
@@ -297,12 +386,99 @@ function items(text, today){
   return wrap;
 }
 
+/* ---------- statistics (global, all teams together) ---------- */
+const zoneRegion = name => (Object.keys(C.zoneTargets || {}).find(r => r.toLowerCase() === name.toLowerCase())) || name;
+function computeStats(){
+  const today = todayKey(), zones = new Map(), special = {total: 0, done: 0, today: 0};
+  data.days.forEach(d => data.teams.forEach(t => {
+    (d.cells[t] || '').split(/\s+\+\s+/).forEach(p => {
+      p = p.trim();
+      if(/^special/i.test(p)){ // special measurements are counted per entry, separately from the zones
+        special.total++; if(d.key < today) special.done++; else if(d.key === today) special.today++; return;
+      }
+      const m = p.match(/^([A-Za-z]+)_/);
+      if(!m || /^(travel|back|off)\b/i.test(p) || /holiday/i.test(p)) return;
+      const k = p.toLowerCase();
+      const z = zones.get(k);
+      if(!z){
+        const pm = p.match(/^[A-Za-z]+_(?:(\d+)_(\d+)_)?(.+)$/);
+        zones.set(k, {region: zoneRegion(m[1]), dates: [d.key], name: pm ? pm[3].trim() : p, id: pm && pm[2] ? pm[2] : ''});
+      } else if(!z.dates.includes(d.key)) z.dates.push(d.key);
+    });
+  }));
+  const targets = C.zoneTargets || {}, regions = {};
+  const blank = target => ({target, planned: 0, done: 0, today: 0, left: []});
+  Object.keys(targets).forEach(r => regions[r] = blank(targets[r]));
+  let replanned = 0;
+  zones.forEach(z => {
+    z.dates.sort(); z.when = z.dates[z.dates.length - 1]; z.earlier = z.dates.slice(0, -1); // the latest planned date is the one that counts
+    if(z.earlier.length) replanned++;
+    const r = regions[z.region] || (regions[z.region] = blank(null));
+    r.planned++;
+    if(z.when < today) r.done++; else { if(z.when === today) r.today++; r.left.push(z); }
+  });
+  Object.values(regions).forEach(r => r.left.sort((a, b) => a.when < b.when ? -1 : a.when > b.when ? 1 : 0));
+  const last = data.days.filter(d => data.teams.some(t => d.cells[t])).map(d => d.key).pop();
+  return {regions, last, special, replanned};
+}
+const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+const meter = (done, base, label) => el('div', {class:'meter', role:'progressbar', 'aria-label':label,
+  'aria-valuemin':'0', 'aria-valuemax':String(base), 'aria-valuenow':String(done)}, el('span', {style:'width:' + pct(done, base) + '%'}));
+function renderStats(list){
+  const s = computeStats(), regionName = r => REGION[r] || r;
+  const baseOf = r => Math.max(r.target || 0, r.planned);
+  const vals = Object.values(s.regions);
+  const total = vals.reduce((a, r) => a + baseOf(r), 0);
+  const done = vals.reduce((a, r) => a + r.done, 0), tod = vals.reduce((a, r) => a + r.today, 0);
+  const planned = vals.reduce((a, r) => a + r.planned, 0);
+  const unplanned = vals.reduce((a, r) => a + Math.max(0, (r.target || 0) - r.planned), 0);
+  list.append(el('section', {class:'stat-hero'},
+    el('div', {class:'big'}, done, el('small', null, ' of ' + total + ' zones done')),
+    el('p', null, pct(done, total) + '% complete. ' + (total - done) + ' left to measure.'),
+    el('p', {class:'asof'}, 'As of today, ' + short(todayKey()) + ': every zone planned before today counts as measured.'),
+    meter(done, total, 'Overall progress'),
+    el('div', {class:'nums'},
+      el('div', null, el('b', null, tod), 'Today'),
+      el('div', null, el('b', null, planned - done - tod), 'Planned ahead'),
+      el('div', null, el('b', null, unplanned), 'Not planned yet'))));
+  list.append(el('h2', {class:'sec'}, 'By region'));
+  Object.entries(s.regions).forEach(([r, v]) => {
+    const base = baseOf(v), unp = Math.max(0, (v.target || 0) - v.planned);
+    list.append(el('div', {class:'stat'},
+      el('div', {class:'stat-top'}, el('strong', null, regionName(r)), el('span', null, v.done + ' / ' + base)),
+      meter(v.done, base, regionName(r) + ' progress'),
+      el('div', {class:'sub'},
+        el('span', null, v.left.length + ' left'),
+        v.today > 0 && el('span', null, v.today + ' of them today'),
+        unp > 0 && el('span', {class:'warn'}, unp + ' not planned yet'),
+        v.target != null && v.planned > v.target && el('span', {class:'warn'}, (v.planned - v.target) + ' more than the target'),
+        v.left.length === 0 && unp === 0 && v.planned > 0 && el('span', null, 'All done')),
+      v.left.length > 0 && el('details', {class:'leftlist'},
+        el('summary', null, 'Show the ' + v.left.length + ' left'),
+        el('ul', null, v.left.map(z => el('li', null, el('span', {class:'ld'}, short(z.when)),
+          el('span', null, z.name + (z.id ? ' (site ' + z.id + ')' : ''),
+            z.earlier.length > 0 && el('small', {class:'was'}, ' also planned ' + z.earlier.map(short).join(', ')))))))));
+  });
+  list.append(el('h2', {class:'sec'}, 'Special measurements'));
+  const sp = s.special;
+  list.append(sp.total === 0
+    ? el('div', {class:'stat'}, el('div', {class:'none'}, 'None planned yet. Entries that start with “Special” are counted here.'))
+    : el('div', {class:'stat'},
+        el('div', {class:'stat-top'}, el('strong', null, 'All special requests'), el('span', null, sp.total + ' planned')),
+        el('div', {class:'sub'}, el('span', null, sp.done + ' done'), sp.today > 0 && el('span', null, sp.today + ' today'),
+          el('span', null, (sp.total - sp.done - sp.today) + ' planned ahead'))));
+  list.append(el('p', {class:'fine'}, 'A zone counts as done once its planned date has passed, because the sheet does not record whether a visit was really completed. If you change a zone’s date in the sheet, the numbers follow it. If a zone appears on more than one date, the latest date counts' + (s.replanned ? ' (' + s.replanned + ' do now)' : '') + '. “Not planned yet” is the required number of zones minus the zones found in the plan; the page cannot say which zones they are because it has no master list. Special measurements are counted separately.'
+    + (s.last ? ' Last planned visit: ' + short(s.last) + '.' : '')));
+  list.append(el('button', {class:'btn owner-lock', type:'button', onclick: () => {
+    LS.set('owner', ''); page = 'plan'; LS.set('page', 'plan'); render(); }}, 'Lock owner view'));
+}
+
 function render(){
   $('#title').textContent = C.title; document.title = C.title;
   const pills = $('#pills'), list = $('#list'), banner = $('#banner'), tools = $('#tools');
   [pills, list, banner, tools].forEach(n => n.replaceChildren());
   $('#preview').replaceChildren(preview ? el('p', {class:'preview'},
-    'Preview: this is a built-in copy of the plan, not live. Add your Google Sheet link in the settings at the top of this file.') : '');
+    'Preview: this is sample data, not your plan. Add your Google Sheet link in the settings at the top of this file.') : '');
 
   if(!data){
     setStatus('Could not load the plan', true);
@@ -311,6 +487,11 @@ function render(){
     return;
   }
   setStatus(online ? 'Updated ' + fmtTime(data.fetchedAt) : 'Offline – showing the copy saved on ' + fmtTime(data.fetchedAt), !online);
+  if(page === 'stats' && !isOwner()) page = 'plan';
+  $('#tabs').replaceChildren(...(isOwner() ? [['plan', 'Plan'], ['stats', 'Statistics']] : []).map(([v, label]) =>
+    el('button', {type:'button', class:'tab', role:'tab', 'aria-selected': String(page === v),
+      onclick: () => { page = v; LS.set('page', v); render(); }}, label)));
+  if(page === 'stats'){ renderStats(list); return; }
   if(sel !== ALL && !data.teams.includes(sel)) sel = data.teams[0];
 
   const chg = {}; data.teams.forEach(t => chg[t] = changesFor(t));
@@ -383,12 +564,49 @@ function render(){
   if(scrollToday){ scrollToday = false; const t = document.querySelector('[aria-current="date"]'); if(t) t.scrollIntoView({block:'center'}); }
 }
 
+/* ---------- passcode screen ---------- */
+let locked = !!C.passcode && LS.get('unlock', '') !== C.passcode;
+const gate = $('#gate'), codeInput = $('#code'), gateErr = $('#gate-err');
+function showGate(){
+  document.body.classList.add('locked'); gate.hidden = false;
+  $('#gate-title').textContent = C.title;
+  setTimeout(() => codeInput.focus(), 50);
+}
+$('#gate-form').addEventListener('submit', e => {
+  e.preventDefault();
+  if(codeInput.value.trim() === C.passcode){
+    LS.set('unlock', C.passcode); locked = false; gate.hidden = true; gateErr.textContent = '';
+    document.body.classList.remove('locked'); refresh();
+  } else { gateErr.textContent = 'That passcode is not correct. Try again.'; codeInput.select(); }
+});
+
+/* ---------- owner access (Statistics tab) ---------- */
+const isOwner = () => !!C.ownerPasscode && LS.get('owner', '') === C.ownerPasscode;
+const ownerBox = $('#owner-box'), ownerInput = $('#owner-code'), ownerErr = $('#owner-err');
+function openOwnerBox(){
+  if(!C.ownerPasscode) return;
+  ownerErr.textContent = ''; ownerInput.value = ''; ownerBox.hidden = false; setTimeout(() => ownerInput.focus(), 50);
+}
+$('#owner-cancel').addEventListener('click', () => { ownerBox.hidden = true; });
+$('#owner-form').addEventListener('submit', e => {
+  e.preventDefault();
+  if(ownerInput.value.trim() === C.ownerPasscode){
+    LS.set('owner', C.ownerPasscode); ownerBox.hidden = true; page = 'stats'; LS.set('page', 'stats'); if(data) render();
+  } else { ownerErr.textContent = 'That passcode is not correct.'; ownerInput.select(); }
+});
+let taps = [];
+$('#title').addEventListener('click', () => {            // tap the title 5 times quickly to open owner access
+  const n = Date.now(); taps = taps.filter(x => n - x < 4000); taps.push(n);
+  if(taps.length >= 5){ taps = []; openOwnerBox(); }
+});
+if(typeof location !== 'undefined' && /(^|[?&#])owner\b/.test(location.search + location.hash)) openOwnerBox();
+
 /* ---------- wiring ---------- */
 $('#refresh').addEventListener('click', refresh);
 document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && Date.now() - loadedAt > 60000) refresh(); });
 setInterval(refresh, Math.max(1, C.refreshMinutes) * 60000);
 window.addEventListener('online', refresh);
-refresh();
+if(locked) showGate(); else refresh();
 })();
 </script>
 </body>
