@@ -14,5 +14,7 @@ window.PLAN_SETTINGS = {
   ownerPasscode: "1100",
 
   // Number of measurement zones to cover in each region (used by the Statistics tab):
-  zoneTargets: { Giza: 12, Alex: 10, Cairo: 22, Upper: 38, Delta: 33, Canal: 12 }
+  zoneTargets: { Giza: 12, Alex: 10, Cairo: 22, Upper: 38, Delta: 33, Canal: 12 },
+  weekStart: 5
+
 };

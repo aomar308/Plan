@@ -71,7 +71,7 @@
   .notice p{margin:0; font-weight:600}
   .notice small{display:block; font-weight:400; color:var(--muted)}
   .seg{display:inline-flex; border:1.5px solid var(--line); border-radius:8px; overflow:hidden; margin-bottom:6px}
-  .seg button{min-height:40px; padding:0 16px; border:0; background:transparent; font-weight:600}
+  .seg button{min-height:40px; padding:0 13px; border:0; background:transparent; font-weight:600}
   .seg button[aria-pressed="true"]{background:var(--ink); color:var(--bg)}
 
   h2.month{margin:20px 0 8px; font-size:15px; font-weight:700; color:var(--muted)}
@@ -161,6 +161,12 @@
   .ld{flex:none; width:88px; color:var(--muted); font-variant-numeric:tabular-nums}
   .stat-hero .asof{font-size:13px; margin:-6px 0 12px}
   .leftlist .was{display:block}
+  .weekbar{display:grid; grid-template-columns:auto 1fr auto; gap:8px; align-items:center; margin:10px 0 4px}
+  .weeklabel{text-align:center; line-height:1.3}
+  .weeklabel strong{display:block; font-size:17px}
+  .weeklabel span{display:block; font-size:13px; color:var(--muted)}
+  .linkbtn{background:transparent; border:0; color:var(--brand); font-weight:650; min-height:32px; padding:0 8px; text-decoration:underline}
+  .btn:disabled{opacity:.4; cursor:default}
 </style>
 </head>
 <body>
@@ -218,7 +224,8 @@ const DEFAULTS = {
   zoneTargets: { Giza: 12, Alex: 10, Cairo: 22, Upper: 38, Delta: 33, Canal: 12 },
   dateColumn: 0,
   ignoreColumns: [],
-  refreshMinutes: 5
+  refreshMinutes: 5,
+  weekStart: 0          // first day of a week: 0 = Sunday, 6 = Saturday
 };
 const CONFIG = Object.assign({}, DEFAULTS, window.PLAN_SETTINGS || {});
 /* ============================================================ */
@@ -282,6 +289,9 @@ const mo  = k => dObj(k).toLocaleDateString([], {month:'short'});
 const dn  = k => +k.slice(8);
 const short = k => `${wd(k)} ${dn(k)} ${mo(k)}`;
 const monthLabel = k => dObj(k).toLocaleDateString([], {month:'long', year:'numeric'});
+const addDays = (k, n) => { const x = dObj(k), e = new Date(x.getFullYear(), x.getMonth(), x.getDate() + n); return key(e.getFullYear(), e.getMonth() + 1, e.getDate()); };
+const weekStartOf = k => addDays(k, -((dObj(k).getDay() - C.weekStart + 7) % 7));
+const rangeLabel = (a, b) => mo(a) === mo(b) ? `${dn(a)} – ${dn(b)} ${mo(a)}` : `${dn(a)} ${mo(a)} – ${dn(b)} ${mo(b)}`;
 const fmtTime = ts => new Date(ts).toLocaleString([], {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
 
 /* ---------- CSV → plan ---------- */
@@ -349,7 +359,7 @@ function changesFor(team){
 
 /* ---------- state ---------- */
 let data = null, error = '', online = true, loadedAt = 0;
-let page = LS.get('page', 'plan'), sel = LS.get('sel', ''), view = LS.get('view', 'upcoming'), scrollToday = false;
+let weekKey = null, page = LS.get('page', 'plan'), sel = LS.get('sel', ''), view = LS.get('view', 'upcoming'), scrollToday = false;
 
 function setStatus(text, bad){ const s = $('#status'); s.textContent = text; s.className = bad ? 'offline' : ''; }
 async function refresh(){
@@ -515,11 +525,31 @@ function render(){
   }
 
   tools.append(el('div', {class:'seg', role:'group', 'aria-label':'Range'},
-    [['upcoming', 'From today'], ['all', 'Whole plan']].map(([v, label]) => el('button', {type:'button', 'aria-pressed': String(view === v),
-      onclick: () => { view = v; LS.set('view', v); scrollToday = v === 'all'; render(); }}, label))));
+    [['upcoming', 'From today'], ['week', 'By week'], ['all', 'Whole plan']].map(([v, label]) => el('button', {type:'button', 'aria-pressed': String(view === v),
+      onclick: () => { view = v; LS.set('view', v); scrollToday = v === 'all'; weekKey = null; render(); }}, label))));
 
   const today = todayKey();
-  const days = data.days.filter(d => view === 'all' || d.key >= today);
+  const firstKey = data.days[0].key, lastKey = data.days[data.days.length - 1].key;
+  let days;
+  if(view === 'week'){
+    const base = weekKey || (today > lastKey ? lastKey : today < firstKey ? firstKey : today);
+    const ws = weekStartOf(base), we = addDays(ws, 6);
+    days = data.days.filter(d => d.key >= ws && d.key <= we);
+    let z = 0, sp = 0;
+    days.forEach(d => scope.forEach(t => (d.cells[t] || '').split(/\s+\+\s+/).forEach(p => {
+      p = p.trim();
+      if(/^special/i.test(p)) sp++;
+      else if(/^[A-Za-z]+_/.test(p) && !/^(travel|back|off)\b/i.test(p) && !/holiday/i.test(p)) z++;
+    })));
+    tools.append(el('div', {class:'weekbar'},
+      el('button', {class:'btn', type:'button', 'aria-label':'Previous week', disabled: ws <= weekStartOf(firstKey) ? 'disabled' : null,
+        onclick: () => { weekKey = addDays(ws, -7); render(); }}, '‹ Prev'),
+      el('div', {class:'weeklabel'}, el('strong', null, rangeLabel(ws, we)),
+        el('span', null, z + (z === 1 ? ' zone' : ' zones') + (sp ? ', ' + sp + ' special' : '')),
+        ws !== weekStartOf(today) && el('button', {class:'linkbtn', type:'button', onclick: () => { weekKey = null; render(); }}, 'Go to this week')),
+      el('button', {class:'btn', type:'button', 'aria-label':'Next week', disabled: we >= lastKey ? 'disabled' : null,
+        onclick: () => { weekKey = addDays(ws, 7); render(); }}, 'Next ›')));
+  } else days = data.days.filter(d => view === 'all' || d.key >= today);
   if(!days.length){
     list.append(el('div', {class:'empty'}, el('strong', null, 'The plan has ended'), 'There are no days left in this plan.',
       el('div', null, el('button', {class:'btn', type:'button', onclick: () => { view = 'all'; LS.set('view', 'all'); render(); }}, 'Show the whole plan'))));
