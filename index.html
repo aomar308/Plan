@@ -167,6 +167,10 @@
   .weeklabel span{display:block; font-size:13px; color:var(--muted)}
   .linkbtn{background:transparent; border:0; color:var(--brand); font-weight:650; min-height:32px; padding:0 8px; text-decoration:underline}
   .btn:disabled{opacity:.4; cursor:default}
+  .who strong{color:var(--ink); font-weight:700}
+  .crew{margin-left:8px; font-weight:500}
+  .crew.nolead{margin-left:0}
+  .pilllabel{flex:none; align-self:center; padding:0 4px 0 10px; font-size:13px; font-weight:600; color:var(--muted)}
 </style>
 </head>
 <body>
@@ -224,6 +228,7 @@ const DEFAULTS = {
   zoneTargets: { Giza: 12, Alex: 10, Cairo: 22, Upper: 38, Delta: 33, Canal: 12 },
   dateColumn: 0,
   ignoreColumns: [],
+  rosterColumn: "Teams",   // column that says who is in each team each day, e.g. Team1=Moustafa+Abbas,Team2=Milad+Hegazy
   refreshMinutes: 5,
   weekStart: 0          // first day of a week: 0 = Sunday, 6 = Saturday
 };
@@ -309,22 +314,42 @@ function parseCSV(text){
   if(cell !== '' || row.length){ row.push(cell); rows.push(row); }
   return rows;
 }
+const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+function parseCrew(text, teamMap, fix){
+  const out = {};
+  String(text || '').split(/[,;\n]+/).forEach(part => {
+    const m = part.match(/^\s*([^=:]+?)\s*[=:]\s*(.+)$/); if(!m) return;
+    const team = teamMap[norm(m[1])]; if(!team) return;
+    out[team] = m[2].split(/\s*(?:\+|&|\band\b)\s*/i).map(s => s.trim()).filter(Boolean).map(fix);
+  });
+  return out;
+}
 function planFromCSV(text){
   const grid = parseCSV(text).filter(r => r.some(c => c.trim() !== ''));
   if(grid.length < 2) throw new Error('The sheet is empty');
   const head = grid[0].map(h => h.trim()), di = C.dateColumn;
+  const ri = C.rosterColumn ? head.findIndex(h => h.toLowerCase() === C.rosterColumn.toLowerCase()) : -1;
   const skip = new Set(C.ignoreColumns.map(s => s.toLowerCase()));
-  const cols = head.map((h, i) => ({h, i})).filter(c => c.h && c.i !== di && !skip.has(c.h.toLowerCase()) && !/^(day|weekday|date)$/i.test(c.h));
+  const cols = head.map((h, i) => ({h, i})).filter(c => c.h && c.i !== di && c.i !== ri && !skip.has(c.h.toLowerCase()) && !/^(day|weekday|date)$/i.test(c.h));
   if(!cols.length) throw new Error('No team names were found in the first row of the sheet');
-  const days = [];
+  const teamMap = {}; cols.forEach(c => teamMap[norm(c.h)] = c.h);
+  const canon = {}, fix = n => canon[n.toLowerCase()] || (canon[n.toLowerCase()] = n.charAt(0).toUpperCase() + n.slice(1));
+  const rows = [];
   grid.slice(1).forEach(r => {
     const k = dateKey(r[di]); if(!k) return;
     const cells = {}; cols.forEach(c => cells[c.h] = (r[c.i] || '').replace(/\s+/g, ' ').trim());
-    days.push({key:k, cells});
+    rows.push({key:k, cells, roster: ri >= 0 ? r[ri] : ''});
   });
-  if(!days.length) throw new Error('No dates were found in the date column');
-  days.sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
-  return {teams: cols.map(c => c.h), days};
+  if(!rows.length) throw new Error('No dates were found in the date column');
+  rows.sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+  let last = {}; const people = [];
+  const days = rows.map(r => {
+    const crew = ri >= 0 ? Object.assign({}, last, parseCrew(r.roster, teamMap, fix)) : {}; // a blank roster cell = same people as the day before
+    last = crew;
+    Object.values(crew).forEach(arr => arr.forEach(n => { if(!people.includes(n)) people.push(n); }));
+    return {key:r.key, cells:r.cells, crew};
+  });
+  return {teams: cols.map(c => c.h), days, people};
 }
 async function fetchPlan(){
   if(preview) return planFromCSV(sampleCSV());
@@ -334,27 +359,45 @@ async function fetchPlan(){
   return planFromCSV(await res.text());
 }
 
-/* ---------- change tracking (per team, by date) ---------- */
-function snapshot(team){
-  const s = {}; data.days.forEach(d => s[d.key] = d.cells[team] || '');
-  LS.set('seen:' + team, s);
+/* ---------- change tracking (per team and per person, by date) ---------- */
+const SEP = '\u241E';
+const crewText = (d, t) => (d.crew && d.crew[t]) ? d.crew[t].join(' + ') : '';
+const teamOf = (d, name) => data.teams.find(t => d.crew && d.crew[t] && d.crew[t].includes(name)) || '';
+const sigTeam = (d, t) => { const c = d.cells[t] || '', m = crewText(d, t); return (c || m) ? c + SEP + m : ''; };
+const sigPerson = (d, name) => { const t = teamOf(d, name); return t ? [t, d.cells[t] || '', crewText(d, t)].join(SEP) : ''; };
+const sigFor = k => k.startsWith('p:') ? d => sigPerson(d, k.slice(2)) : d => sigTeam(d, k);
+const trackKeys = () => [...data.teams, ...(data.people || []).map(p => 'p:' + p)];
+function snapshot(k){
+  const f = sigFor(k), s = {}; data.days.forEach(d => s[d.key] = f(d));
+  LS.set('seen2:' + k, s);
 }
 function seedSnapshots(){
-  data.teams.forEach((t, i) => {
-    if(LS.get('seen:' + t, null)) return;
-    snapshot(t);
+  trackKeys().forEach((k, i) => {
+    if(LS.get('seen2:' + k, null)) return;
+    snapshot(k);
     if(preview && i === 0){ // preview only: pretend one upcoming day was different, so the highlight can be seen
-      const s = LS.get('seen:' + t, {}), today = todayKey();
-      const d = data.days.find(x => x.key >= today && x.cells[t] && /_/.test(x.cells[t]) && x.key > today);
-      if(d){ s[d.key] = 'Cairo_01_000_Previous site'; LS.set('seen:' + t, s); }
+      const s = LS.get('seen2:' + k, {}), today = todayKey();
+      const d = data.days.find(x => x.key > today && x.cells[k] && /_/.test(x.cells[k]));
+      if(d){ s[d.key] = 'Cairo_01_000_Previous site' + SEP; LS.set('seen2:' + k, s); }
     }
   });
 }
-function changesFor(team){
-  const seen = LS.get('seen:' + team, null), out = {}, today = todayKey();
+function changesFor(k){
+  const seen = LS.get('seen2:' + k, null), out = {}, today = todayKey(), f = sigFor(k);
   if(!seen) return out;
-  data.days.forEach(d => { if(d.key >= today && (d.cells[team] || '') !== (seen[d.key] || '')) out[d.key] = seen[d.key] || ''; });
+  data.days.forEach(d => { if(d.key >= today){ const now = f(d), was = seen[d.key] || ''; if(now !== was) out[d.key] = was; } });
   return out;
+}
+function wasLine(e, d){
+  if(e.k.startsWith('p:')){
+    const [pa = '', pb = '', pc = ''] = e.was.split(SEP), me = e.k.slice(2), partners = pc.split(' + ').filter(n => n && n !== me);
+    return pa ? pa + (pb ? ': ' + pb : '') + (partners.length ? ' with ' + partners.join(' + ') : '') : '';
+  }
+  const [a = '', b = ''] = e.was.split(SEP);
+  const parts = [];
+  if(a !== (d.cells[e.k] || '')) parts.push(a || 'no plan');
+  if(b !== crewText(d, e.k)) parts.push((b || 'no crew set') + ' (crew)');
+  return parts.join('; ');
 }
 
 /* ---------- state ---------- */
@@ -502,11 +545,13 @@ function render(){
     el('button', {type:'button', class:'tab', role:'tab', 'aria-selected': String(page === v),
       onclick: () => { page = v; LS.set('page', v); render(); }}, label)));
   if(page === 'stats'){ renderStats(list); return; }
-  if(sel !== ALL && !data.teams.includes(sel)) sel = data.teams[0];
+  const known = (data.people || []).map(p => 'p:' + p);
+  if(sel !== ALL && !data.teams.includes(sel) && !known.includes(sel)) sel = data.teams[0];
+  const person = sel.startsWith('p:') ? sel.slice(2) : '';
 
-  const chg = {}; data.teams.forEach(t => chg[t] = changesFor(t));
-  const count = t => Object.keys(chg[t]).length;
-  const scope = sel === ALL ? data.teams : [sel];
+  const chg = {}; trackKeys().forEach(k => chg[k] = changesFor(k));
+  const count = k => Object.keys(chg[k]).length;
+  const scope = person ? [sel] : sel === ALL ? data.teams : [sel];   // the tracked keys whose days are shown
   const allDates = new Set(); data.teams.forEach(t => Object.keys(chg[t]).forEach(k => allDates.add(k)));
 
   const pick = v => { sel = v; LS.set('sel', v); render(); };
@@ -514,6 +559,11 @@ function render(){
     'All teams', allDates.size > 0 && el('span', {class:'dot', 'aria-label': allDates.size + ' changed days'}, allDates.size)));
   data.teams.forEach(t => pills.append(el('button', {type:'button', class:'pill', 'aria-pressed': String(t === sel), onclick: () => pick(t)},
     t, count(t) > 0 && el('span', {class:'dot', 'aria-label': count(t) + ' changed days'}, count(t)))));
+  if(known.length){
+    pills.append(el('span', {class:'pilllabel'}, 'My plan'));
+    known.forEach(k => pills.append(el('button', {type:'button', class:'pill', 'aria-pressed': String(k === sel), onclick: () => pick(k)},
+      k.slice(2), count(k) > 0 && el('span', {class:'dot', 'aria-label': count(k) + ' changed days'}, count(k)))));
+  }
 
   const scopeDates = new Set(); scope.forEach(t => Object.keys(chg[t]).forEach(k => scopeDates.add(k)));
   if(scopeDates.size){
@@ -529,6 +579,7 @@ function render(){
       onclick: () => { view = v; LS.set('view', v); scrollToday = v === 'all'; weekKey = null; render(); }}, label))));
 
   const today = todayKey();
+  const cellsOf = d => person ? [d.cells[teamOf(d, person)] || ''] : scope.map(t => d.cells[t] || '');
   const firstKey = data.days[0].key, lastKey = data.days[data.days.length - 1].key;
   let days;
   if(view === 'week'){
@@ -536,7 +587,7 @@ function render(){
     const ws = weekStartOf(base), we = addDays(ws, 6);
     days = data.days.filter(d => d.key >= ws && d.key <= we);
     let z = 0, sp = 0;
-    days.forEach(d => scope.forEach(t => (d.cells[t] || '').split(/\s+\+\s+/).forEach(p => {
+    days.forEach(d => cellsOf(d).forEach(txt => txt.split(/\s+\+\s+/).forEach(p => {
       p = p.trim();
       if(/^special/i.test(p)) sp++;
       else if(/^[A-Za-z]+_/.test(p) && !/^(travel|back|off)\b/i.test(p) && !/holiday/i.test(p)) z++;
@@ -556,7 +607,13 @@ function render(){
     return;
   }
 
-  const showTeams = d => scope.filter(t => d.cells[t] || (d.key in chg[t]));
+  const entriesOf = d => {
+    if(person){
+      const tm = teamOf(d, person), isChg = d.key in chg[sel], text = tm ? (d.cells[tm] || '') : '';
+      return (text || isChg) ? [{k: sel, team: tm, text, isChg, was: chg[sel][d.key] || ''}] : [];
+    }
+    return scope.filter(t => d.cells[t] || (d.key in chg[t])).map(t => ({k: t, team: t, text: d.cells[t] || '', isChg: d.key in chg[t], was: chg[t][d.key] || ''}));
+  };
   let month = '', run = [];
   const ensureMonth = k => { const m = k.slice(0, 7); if(m !== month){ month = m; list.append(el('h2', {class:'month'}, monthLabel(k))); } };
   const flush = () => {
@@ -568,19 +625,25 @@ function render(){
   };
 
   days.forEach(d => {
-    const isToday = d.key === today, shown = showTeams(d);
+    const isToday = d.key === today, shown = entriesOf(d);
     if(!shown.length && !isToday){ run.push(d); return; }
     flush(); ensureMonth(d.key);
-    const flagged = shown.some(t => d.key in chg[t]);
+    const flagged = shown.some(e => e.isChg);
     const body = el('div');
-    if(!shown.length) body.append(el('div', {class:'none'}, 'Nothing planned today.'));
-    shown.forEach(t => {
-      const text = d.cells[t] || '', was = chg[t][d.key], isChg = d.key in chg[t];
-      body.append(el('div', {class:'row'},
-        sel === ALL && el('div', {class:'who'}, t),
-        text ? items(text) : el('div', {class:'none'}, 'No plan'),
-        isChg && el('div', {class:'flagline'}, el('span', {class:'tag'}, was ? 'Changed' : 'New'),
-          was && el('span', {class:'was'}, 'was: ' + was))));
+    if(!shown.length) body.append(el('div', {class:'none'}, person && !teamOf(d, person) ? 'You are not in a team today.' : 'Nothing planned today.'));
+    shown.forEach(e => {
+      const members = (e.team && d.crew && d.crew[e.team]) || [];
+      let who = null;
+      if(person) who = e.team
+        ? el('div', {class:'who'}, el('strong', null, e.team), el('span', {class:'crew'}, members.filter(n => n !== person).length ? 'with ' + members.filter(n => n !== person).join(' + ') : 'alone'))
+        : el('div', {class:'who'}, 'Not in a team');
+      else if(sel === ALL) who = el('div', {class:'who'}, el('strong', null, e.team), members.length > 0 && el('span', {class:'crew'}, members.join(' + ')));
+      else if(members.length > 0) who = el('div', {class:'who'}, el('span', {class:'crew nolead'}, members.join(' + ')));
+      const wl = e.isChg && e.was ? wasLine(e, d) : '';
+      body.append(el('div', {class:'row'}, who,
+        e.text ? items(e.text) : el('div', {class:'none'}, 'No plan'),
+        e.isChg && el('div', {class:'flagline'}, el('span', {class:'tag'}, e.was ? 'Changed' : 'New'),
+          wl && el('span', {class:'was'}, 'was: ' + wl))));
     });
     list.append(el('article', {class:'day' + (isToday ? ' today' : '') + (flagged ? ' changed' : '') + (d.key < today ? ' past' : ''),
       'aria-current': isToday ? 'date' : null},
