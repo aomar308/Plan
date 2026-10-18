@@ -171,6 +171,8 @@
   .crew{margin-left:8px; font-weight:500}
   .crew.nolead{margin-left:0}
   .pilllabel{flex:none; align-self:center; padding:0 4px 0 10px; font-size:13px; font-weight:600; color:var(--muted)}
+  .leftlist .at{display:block; font-size:13px; color:var(--muted)}
+  .locs{margin:8px 0 0; font-size:15px}
 </style>
 </head>
 <body>
@@ -442,12 +444,16 @@ function items(text, today){
 /* ---------- statistics (global, all teams together) ---------- */
 const zoneRegion = name => (Object.keys(C.zoneTargets || {}).find(r => r.toLowerCase() === name.toLowerCase())) || name;
 function computeStats(){
-  const today = todayKey(), zones = new Map(), special = {total: 0, done: 0, today: 0};
+  const today = todayKey(), zones = new Map(), special = {total: 0, done: 0, today: 0, items: []};
   data.days.forEach(d => data.teams.forEach(t => {
-    (d.cells[t] || '').split(/\s+\+\s+/).forEach(p => {
-      p = p.trim();
+    const pieces = (d.cells[t] || '').split(/\s+\+\s+/).map(p => p.trim()).filter(Boolean);
+    const siteP = pieces.find(p => !/^special/i.test(p) && /^[A-Za-z]+_/.test(p) && !/^(travel|back|off)\b/i.test(p) && !/holiday/i.test(p));
+    const atName = siteP ? ((siteP.match(/^[A-Za-z]+_(?:\d+_\d+_)?(.+)$/) || [])[1] || '').trim() : '';
+    pieces.forEach(p => {
       if(/^special/i.test(p)){ // special measurements are counted per entry, separately from the zones
-        special.total++; if(d.key < today) special.done++; else if(d.key === today) special.today++; return;
+        special.total++; if(d.key < today) special.done++; else if(d.key === today) special.today++;
+        special.items.push({when: d.key, name: p.replace(/^special[\s_:\-–—.]*/i, '').trim() || 'Special measurement', at: atName});
+        return;
       }
       const m = p.match(/^([A-Za-z]+)_/);
       if(!m || /^(travel|back|off)\b/i.test(p) || /holiday/i.test(p)) return;
@@ -475,6 +481,7 @@ function computeStats(){
     r.doneList.sort((a, b) => a.when < b.when ? 1 : a.when > b.when ? -1 : 0);   // newest first
   });
   const last = data.days.filter(d => data.teams.some(t => d.cells[t])).map(d => d.key).pop();
+  special.items.sort((a, b) => a.when < b.when ? -1 : a.when > b.when ? 1 : 0);
   return {regions, last, special, replanned};
 }
 const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
@@ -524,9 +531,57 @@ function renderStats(list){
     : el('div', {class:'stat'},
         el('div', {class:'stat-top'}, el('strong', null, 'All special requests'), el('span', null, sp.total + ' planned')),
         el('div', {class:'sub'}, el('span', null, sp.done + ' done'), sp.today > 0 && el('span', null, sp.today + ' today'),
-          el('span', null, (sp.total - sp.done - sp.today) + ' planned ahead'))));
+          el('span', null, (sp.total - sp.done - sp.today) + ' planned ahead')),
+        ...[['left', sp.items.filter(x => x.when >= todayKey())], ['done', sp.items.filter(x => x.when < todayKey()).reverse()]]
+          .filter(([, arr]) => arr.length > 0).map(([kind, arr]) => el('details', {class:'leftlist'},
+            el('summary', null, 'Show the ' + arr.length + ' ' + kind),
+            el('ul', null, arr.map(x => el('li', null, el('span', {class:'ld'}, short(x.when)),
+              el('span', null, x.name, x.at && el('small', {class:'at'}, 'with ' + x.at)))))))));
   list.append(el('p', {class:'fine'}, 'A zone counts as done once its planned date has passed, because the sheet does not record whether a visit was really completed. If you change a zone’s date in the sheet, the numbers follow it. If a zone appears on more than one date, the latest date counts' + (s.replanned ? ' (' + s.replanned + ' do now)' : '') + '. “Not planned yet” is the required number of zones minus the zones found in the plan; the page cannot say which zones they are because it has no master list. Special measurements are counted separately.'
     + (s.last ? ' Last planned visit: ' + short(s.last) + '.' : '')));
+  list.append(el('button', {class:'btn owner-lock', type:'button', onclick: () => {
+    LS.set('owner', ''); page = 'plan'; LS.set('page', 'plan'); render(); }}, 'Lock owner view'));
+}
+
+/* ---------- travel statistics (owner only) ---------- */
+function computeTravel(){
+  const today = todayKey(), people = {}, ensure = n => people[n] || (people[n] = {name: n, trips: [], returns: 0});
+  const team = {total: 0, done: 0};
+  data.days.forEach(d => data.teams.forEach(t => {
+    const members = (d.crew && d.crew[t] && d.crew[t].length) ? d.crew[t] : [t];
+    (d.cells[t] || '').split(/\s+\+\s+/).map(p => p.trim()).filter(Boolean).forEach(p => {
+      if(/^travel\b/i.test(p)){
+        const loc = p.replace(/^travel\s*(to\s*)?/i, '').trim() || 'Unknown place';
+        team.total++; if(d.key < today) team.done++;
+        members.forEach(n => ensure(n).trips.push({when: d.key, loc}));
+      } else if(/^back\b/i.test(p)) members.forEach(n => ensure(n).returns++);
+    });
+  }));
+  (data.people || []).forEach(ensure);
+  const list = Object.values(people).sort((a, b) => b.trips.length - a.trips.length || a.name.localeCompare(b.name));
+  list.forEach(p => p.trips.sort((a, b) => a.when < b.when ? -1 : a.when > b.when ? 1 : 0));
+  return {list, team};
+}
+function renderTravel(list){
+  const s = computeTravel(), today = todayKey();
+  list.append(el('section', {class:'stat-hero'},
+    el('div', {class:'big'}, s.team.total, el('small', null, s.team.total === 1 ? ' trip planned' : ' trips planned')),
+    el('p', null, s.team.done + ' done, ' + (s.team.total - s.team.done) + ' still ahead. A trip counts once for every technician in the team that day.')));
+  list.append(el('h2', {class:'sec'}, 'By technician'));
+  s.list.forEach(p => {
+    const done = p.trips.filter(x => x.when < today).length, ahead = p.trips.length - done, byLoc = {};
+    p.trips.forEach(x => { const k = x.loc.toLowerCase(); (byLoc[k] || (byLoc[k] = {loc: x.loc, n: 0})).n++; });
+    const locs = Object.values(byLoc).sort((a, b) => b.n - a.n || a.loc.localeCompare(b.loc));
+    list.append(el('div', {class:'stat'},
+      el('div', {class:'stat-top'}, el('strong', null, p.name), el('span', null, p.trips.length + (p.trips.length === 1 ? ' trip' : ' trips'))),
+      el('div', {class:'sub'}, el('span', null, done + ' done'), ahead > 0 && el('span', null, ahead + ' planned ahead'),
+        p.returns > 0 && el('span', null, p.returns + (p.returns === 1 ? ' return' : ' returns'))),
+      locs.length > 0 && el('p', {class:'locs'}, locs.map(x => x.loc + (x.n > 1 ? ' (' + x.n + ')' : '')).join(', ')),
+      p.trips.length > 0 && el('details', {class:'leftlist'},
+        el('summary', null, 'Show the ' + p.trips.length + (p.trips.length === 1 ? ' trip' : ' trips')),
+        el('ul', null, p.trips.map(x => el('li', null, el('span', {class:'ld'}, short(x.when)), el('span', null, x.loc)))))));
+  });
+  list.append(el('p', {class:'fine'}, 'Trips are the plan entries that start with “Travel”. Entries that start with “Back” are counted as returns and are not trips. Each technician is credited with the trips of the team they were in on that day.'));
   list.append(el('button', {class:'btn owner-lock', type:'button', onclick: () => {
     LS.set('owner', ''); page = 'plan'; LS.set('page', 'plan'); render(); }}, 'Lock owner view'));
 }
@@ -545,11 +600,12 @@ function render(){
     return;
   }
   setStatus(online ? 'Updated ' + fmtTime(data.fetchedAt) : 'Offline – showing the copy saved on ' + fmtTime(data.fetchedAt), !online);
-  if(page === 'stats' && !isOwner()) page = 'plan';
-  $('#tabs').replaceChildren(...(isOwner() ? [['plan', 'Plan'], ['stats', 'Statistics']] : []).map(([v, label]) =>
+  if(page !== 'plan' && !isOwner()) page = 'plan';
+  $('#tabs').replaceChildren(...(isOwner() ? [['plan', 'Plan'], ['stats', 'Statistics'], ['travel', 'Travel']] : []).map(([v, label]) =>
     el('button', {type:'button', class:'tab', role:'tab', 'aria-selected': String(page === v),
       onclick: () => { page = v; LS.set('page', v); render(); }}, label)));
   if(page === 'stats'){ renderStats(list); return; }
+  if(page === 'travel'){ renderTravel(list); return; }
   const known = (data.people || []).map(p => 'p:' + p);
   if(sel !== ALL && !data.teams.includes(sel) && !known.includes(sel)) sel = data.teams[0];
   const person = sel.startsWith('p:') ? sel.slice(2) : '';
