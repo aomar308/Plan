@@ -460,7 +460,7 @@ function computeStats(){
     });
   }));
   const targets = C.zoneTargets || {}, regions = {};
-  const blank = target => ({target, planned: 0, done: 0, today: 0, left: []});
+  const blank = target => ({target, planned: 0, done: 0, today: 0, left: [], doneList: []});
   Object.keys(targets).forEach(r => regions[r] = blank(targets[r]));
   let replanned = 0;
   zones.forEach(z => {
@@ -468,9 +468,12 @@ function computeStats(){
     if(z.earlier.length) replanned++;
     const r = regions[z.region] || (regions[z.region] = blank(null));
     r.planned++;
-    if(z.when < today) r.done++; else { if(z.when === today) r.today++; r.left.push(z); }
+    if(z.when < today){ r.done++; r.doneList.push(z); } else { if(z.when === today) r.today++; r.left.push(z); }
   });
-  Object.values(regions).forEach(r => r.left.sort((a, b) => a.when < b.when ? -1 : a.when > b.when ? 1 : 0));
+  Object.values(regions).forEach(r => {
+    r.left.sort((a, b) => a.when < b.when ? -1 : a.when > b.when ? 1 : 0);
+    r.doneList.sort((a, b) => a.when < b.when ? 1 : a.when > b.when ? -1 : 0);   // newest first
+  });
   const last = data.days.filter(d => data.teams.some(t => d.cells[t])).map(d => d.key).pop();
   return {regions, last, special, replanned};
 }
@@ -494,6 +497,11 @@ function renderStats(list){
       el('div', null, el('b', null, tod), 'Today'),
       el('div', null, el('b', null, planned - done - tod), 'Planned ahead'),
       el('div', null, el('b', null, unplanned), 'Not planned yet'))));
+  const zoneList = (label, zs) => el('details', {class:'leftlist'},
+    el('summary', null, label),
+    el('ul', null, zs.map(z => el('li', null, el('span', {class:'ld'}, short(z.when)),
+      el('span', null, z.name + (z.id ? ' (site ' + z.id + ')' : ''),
+        z.earlier.length > 0 && el('small', {class:'was'}, ' also planned ' + z.earlier.map(short).join(', ')))))));
   list.append(el('h2', {class:'sec'}, 'By region'));
   Object.entries(s.regions).forEach(([r, v]) => {
     const base = baseOf(v), unp = Math.max(0, (v.target || 0) - v.planned);
@@ -506,11 +514,8 @@ function renderStats(list){
         unp > 0 && el('span', {class:'warn'}, unp + ' not planned yet'),
         v.target != null && v.planned > v.target && el('span', {class:'warn'}, (v.planned - v.target) + ' more than the target'),
         v.left.length === 0 && unp === 0 && v.planned > 0 && el('span', null, 'All done')),
-      v.left.length > 0 && el('details', {class:'leftlist'},
-        el('summary', null, 'Show the ' + v.left.length + ' left'),
-        el('ul', null, v.left.map(z => el('li', null, el('span', {class:'ld'}, short(z.when)),
-          el('span', null, z.name + (z.id ? ' (site ' + z.id + ')' : ''),
-            z.earlier.length > 0 && el('small', {class:'was'}, ' also planned ' + z.earlier.map(short).join(', ')))))))));
+      v.left.length > 0 && zoneList('Show the ' + v.left.length + ' left', v.left),
+      v.doneList.length > 0 && zoneList('Show the ' + v.doneList.length + ' done', v.doneList)));
   });
   list.append(el('h2', {class:'sec'}, 'Special measurements'));
   const sp = s.special;
